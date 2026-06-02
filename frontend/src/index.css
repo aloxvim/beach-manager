@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { font-family: ui-sans-serif, system-ui, sans-serif; }
+  body { @apply bg-ocean-900 text-white min-h-screen; }
+}
+
+@layer utilities {
+  .status-free     { @apply bg-gray-700 border-gray-600; }
+  .status-reserved { @apply bg-amber-700 border-amber-500; }
+  .status-occupied { @apply bg-ocean-700 border-ocean-500; }
+}
