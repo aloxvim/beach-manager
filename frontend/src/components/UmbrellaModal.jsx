@@ -54,10 +54,11 @@ export default function UmbrellaModal({ umbrella, rental, settings, products, on
 
   async function handleFree() {
     if (!confirm("¿Marcar esta tumbona como libre?")) return;
+    if (umbrella.isExtra && !rental) { onClose(false, true); return; }
     setLoading(true); setError("");
     try {
       await api.updateRental(rental.id, { status: "free" });
-      onClose(true);
+      onClose(true, umbrella.isExtra);
     } catch (e) { setError(e.message); } finally { setLoading(false); }
   }
 
@@ -93,7 +94,9 @@ export default function UmbrellaModal({ umbrella, rental, settings, products, on
     } catch (e) { setError(e.message); } finally { setLoading(false); }
   }
 
-  const umbrellaLabel = umbrella.id.replace("R", "Fila ").replace("-U", " · Sombrilla ").replace("-L", " · Izquierda").replace("-R", " · Derecha");
+  const umbrellaLabel = umbrella.isExtra
+    ? umbrella.id.replace(/^R(\d+)-U(\d+)-X(\d+)$/, (_, r, u, n) => `Fila ${r} · Sombrilla ${u} · Extra ${n}`)
+    : umbrella.id.replace(/^R(\d+)-U(\d+)-L$/, (_, r, u) => `Fila ${r} · Sombrilla ${u} · Izquierda`).replace(/^R(\d+)-U(\d+)-R$/, (_, r, u) => `Fila ${r} · Sombrilla ${u} · Derecha`);
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center" onClick={() => onClose(false)}>
@@ -127,6 +130,11 @@ export default function UmbrellaModal({ umbrella, rental, settings, products, on
             <button onClick={() => setView("reserve")} className="w-full bg-amber-800 hover:bg-amber-700 text-white font-medium py-3 rounded-xl">
               📋 Reservar
             </button>
+            {umbrella.isExtra && (
+              <button onClick={() => onClose(false, true)} className="w-full bg-gray-800 hover:bg-gray-700 text-gray-400 py-2.5 rounded-xl text-sm">
+                🗑️ Quitar tumbona extra
+              </button>
+            )}
           </div>
         )}
 
@@ -309,7 +317,11 @@ export default function UmbrellaModal({ umbrella, rental, settings, products, on
                 min="0"
                 max={rental?.price}
                 value={refundAmount}
-                onChange={(e) => setRefundAmount(e.target.value)}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  if (!isNaN(val) && val > (rental?.price || 0)) return;
+                  setRefundAmount(e.target.value);
+                }}
                 placeholder="0.00"
                 className="flex-1 bg-ocean-900 border border-ocean-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-sand-400"
               />
