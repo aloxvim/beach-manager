@@ -117,6 +117,18 @@ router.post("/:id/checkin", (req, res) => {
   res.json(db.prepare("SELECT * FROM rentals WHERE id = ?").get(req.params.id));
 });
 
+// POST /rentals/:id/checkout — cierra turno, conserva ingresos, libera para siguiente cliente
+router.post("/:id/checkout", (req, res) => {
+  const db = getDb();
+  const rental = db.prepare("SELECT * FROM rentals WHERE id = ?").get(req.params.id);
+  if (!rental) return res.status(404).json({ error: "No encontrado" });
+
+  db.prepare(`UPDATE rentals SET status = 'done', checked_out_at = datetime('now') WHERE id = ?`)
+    .run(req.params.id);
+
+  res.json({ ok: true });
+});
+
 // POST /rentals/:id/consumptions — añadir consumición
 router.post("/:id/consumptions", (req, res) => {
   const db = getDb();

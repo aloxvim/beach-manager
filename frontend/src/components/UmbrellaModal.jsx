@@ -62,6 +62,15 @@ export default function UmbrellaModal({ umbrella, rental, settings, products, on
     } catch (e) { setError(e.message); } finally { setLoading(false); }
   }
 
+  async function handleCheckout() {
+    if (!confirm("¿Cerrar este turno? La tumbona quedará libre para otro cliente. Los ingresos actuales se conservan.")) return;
+    setLoading(true); setError("");
+    try {
+      await api.checkoutRental(rental.id);
+      onClose(true);
+    } catch (e) { setError(e.message); } finally { setLoading(false); }
+  }
+
   async function handleRefund() {
     setLoading(true); setError("");
     try {
@@ -108,11 +117,10 @@ export default function UmbrellaModal({ umbrella, rental, settings, products, on
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="font-bold text-white text-base">{umbrellaLabel}</h2>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              status === "free" ? "bg-gray-700 text-gray-300" :
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${status === "free" ? "bg-gray-700 text-gray-300" :
               status === "reserved" ? "bg-amber-800 text-amber-200" :
-              "bg-ocean-700 text-ocean-200"
-            }`}>
+                "bg-ocean-700 text-ocean-200"
+              }`}>
               {status === "free" ? "Libre" : status === "reserved" ? "Reservada" : "Ocupada"}
             </span>
           </div>
@@ -272,8 +280,11 @@ export default function UmbrellaModal({ umbrella, rental, settings, products, on
             <button onClick={() => setView("refund")} className="w-full bg-red-900 hover:bg-red-800 text-white py-3 rounded-xl font-medium">
               💸 Reembolso parcial
             </button>
+            <button onClick={handleCheckout} disabled={loading} className="w-full bg-green-900 hover:bg-green-800 text-white py-3 rounded-xl font-medium">
+              🚪 Check-out (conservar ingresos)
+            </button>
             <button onClick={handleFree} disabled={loading} className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-xl text-sm">
-              🚪 Liberar tumbona
+              🗑️ Anular (sin cargo)
             </button>
           </div>
         )}

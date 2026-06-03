@@ -48,6 +48,7 @@ export const api = {
   getRentals: (date) => request(`/rentals${date ? `?date=${date}` : ""}`),
   createRental: (data) => request("/rentals", { method: "POST", body: data }),
   updateRental: (id, data) => request(`/rentals/${id}`, { method: "PATCH", body: data }),
+  checkoutRental: (id) => request(`/rentals/${id}/checkout`, { method: "POST" }),
   reserveUmbrella: (id, data) => request(`/rentals/${id}/reserve`, { method: "POST", body: data }),
   checkinRental: (id) => request(`/rentals/${id}/checkin`, { method: "POST" }),
   addConsumption: (id, data) => request(`/rentals/${id}/consumptions`, { method: "POST", body: data }),

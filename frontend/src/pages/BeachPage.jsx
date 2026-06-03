@@ -55,14 +55,16 @@ export default function BeachPage() {
       const extrasMap = {};
 
       rentalsData.forEach((r) => {
-        rentalsMap[r.umbrella_id] = r;
+        // 'done' = turno cerrado con ingresos; visualmente libre para nuevo cliente
+        if (r.status !== "done") {
+          rentalsMap[r.umbrella_id] = r;
+        }
         // Detect extras: IDs with -X suffix
         if (r.umbrella_id.includes("-X")) {
           const parsed = parseUmbrellaId(r.umbrella_id);
           if (parsed) {
             const key = `R${parsed.row}-U${parsed.col}`;
             if (!extrasMap[key]) extrasMap[key] = [];
-            // Avoid duplicates
             if (!extrasMap[key].find((e) => e.id === r.umbrella_id)) {
               extrasMap[key].push({
                 id: r.umbrella_id,
@@ -148,9 +150,9 @@ export default function BeachPage() {
 
       {/* Legend */}
       <div className="flex gap-3 px-4 py-2 text-xs">
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-600 inline-block"/>Libre</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-700 inline-block"/>Reservada</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-ocean-700 inline-block"/>Ocupada</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-600 inline-block" />Libre</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-700 inline-block" />Reservada</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-ocean-700 inline-block" />Ocupada</span>
       </div>
 
       {/* Beach grid */}
@@ -162,7 +164,7 @@ export default function BeachPage() {
               {Array.from({ length: UMBRELLAS_PER_ROW }, (_, i) => {
                 const col = i + 1;
                 const row = rowIdx + 1;
-                const left  = rowUmbrellas.find((u) => u.col === col && u.side === "L");
+                const left = rowUmbrellas.find((u) => u.col === col && u.side === "L");
                 const right = rowUmbrellas.find((u) => u.col === col && u.side === "R");
                 const key = `R${row}-U${col}`;
                 const extraList = extras[key] || [];
