@@ -1,223 +1,170 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../api";
-import UmbrellaCell from "../components/UmbrellaCell";
-import UmbrellaModal from "../components/UmbrellaModal";
+import OrderModal from "../components/OrderModal";
 import BottomNav from "../components/BottomNav";
 
-const ROWS = 2;
-const UMBRELLAS_PER_ROW = 15;
+const NORMAL_MIN = 500;
+const NORMAL_MAX = 530;
+const BALINESE_MIN = 531;
+const BALINESE_MAX = 539;
 
-function buildUmbrellaId(row, col, side) {
-  return `R${row}-U${col}-${side}`;
+function isBalinese(num) { return num >= BALINESE_MIN; }
+
+function allUmbrellas() {
+  const list = [];
+  for (let i = NORMAL_MIN; i <= BALINESE_MAX; i++) list.push(i);
+  return list;
 }
 
-function buildExtraId(row, col, n) {
-  return `R${row}-U${col}-X${n}`;
-}
+const STATUS_COLOR = {
+  reserved:   "bg-amber-800 border-amber-600",
+  pending:    "bg-red-900 border-red-700",
+  paid:       "bg-ocean-700 border-ocean-500",
+  paid_table: "bg-green-900 border-green-700",
+  guest:      "bg-purple-900 border-purple-700",
+};
 
-function generateBaseUmbrellas() {
-  const umbrellas = [];
-  for (let row = 1; row <= ROWS; row++) {
-    for (let col = 1; col <= UMBRELLAS_PER_ROW; col++) {
-      umbrellas.push({ id: buildUmbrellaId(row, col, "L"), row, col, side: "L", isExtra: false });
-      umbrellas.push({ id: buildUmbrellaId(row, col, "R"), row, col, side: "R", isExtra: false });
-    }
-  }
-  return umbrellas;
-}
-
-// Parse umbrella_id to get row and col, works for base and extra
-function parseUmbrellaId(id) {
-  const m = id.match(/^R(\d+)-U(\d+)-/);
-  return m ? { row: parseInt(m[1]), col: parseInt(m[2]) } : null;
-}
+const STATUS_LABEL = {
+  reserved: "Reservado", pending: "Pendiente", paid: "Pagado",
+  paid_table: "Pagado en mesa", guest: "Invitado",
+};
 
 export default function BeachPage() {
-  const [rentals, setRentals] = useState({});
-  const [selectedUmbrella, setSelectedUmbrella] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState({ daily_price: "5" });
+  const [orders, setOrders] = useState({});   // umbrella_num → [order, ...]
+  const [selected, setSelected] = useState(null); // { num, order | null }
+  const [settings, setSettings] = useState({ standard_price: "6" });
   const [products, setProducts] = useState([]);
-  // extras: { "R1-U3": [{id, ...}, ...] }
-  const [extras, setExtras] = useState({});
-
-  const baseUmbrellas = generateBaseUmbrellas();
+  const [loading, setLoading] = useState(true);
   const today = new Date().toISOString().slice(0, 10);
 
   const loadData = useCallback(async () => {
-    try {
-      const [rentalsData, settingsData, productsData] = await Promise.all([
-        api.getRentals(),
-        api.getSettings(),
-        api.getProducts(),
-      ]);
-      const rentalsMap = {};
-      const extrasMap = {};
-
-      rentalsData.forEach((r) => {
-        // 'done' = turno cerrado con ingresos; visualmente libre para nuevo cliente
-        if (r.status !== "done") {
-          rentalsMap[r.umbrella_id] = r;
-        }
-        // Detect extras: IDs with -X suffix
-        if (r.umbrella_id.includes("-X")) {
-          const parsed = parseUmbrellaId(r.umbrella_id);
-          if (parsed) {
-            const key = `R${parsed.row}-U${parsed.col}`;
-            if (!extrasMap[key]) extrasMap[key] = [];
-            if (!extrasMap[key].find((e) => e.id === r.umbrella_id)) {
-              extrasMap[key].push({
-                id: r.umbrella_id,
-                row: parsed.row,
-                col: parsed.col,
-                isExtra: true,
-              });
-            }
-          }
-        }
-      });
-
-      setRentals(rentalsMap);
-      setSettings(settingsData);
-      setProducts(productsData);
-      setExtras(extrasMap);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    const [ordersData, settingsData, productsData] = await Promise.all([
+      api.getOrders(), api.getSettings(), api.getProducts(),
+    ]);
+    // Group active (non-closed) orders by umbrella
+    const map = {};
+    ordersData.forEach((o) => {
+      if (o.closed) return;
+      if (!map[o.umbrella_num]) map[o.umbrella_num] = [];
+      map[o.umbrella_num].push(o);
+    });
+    setOrders(map);
+    setSettings(settingsData);
+    setProducts(productsData);
+    setLoading(false);
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  function handleModalClose(updated) {
-    if (updated) loadData();
-    setSelectedUmbrella(null);
+  function handleClick(num) {
+    const active = orders[num] || [];
+    // If one active order, open it. If multiple (unusual), open last. If none, open new.
+    const order = active.length > 0 ? active[active.length - 1] : null;
+    setSelected({ num, order });
   }
 
-  function addExtra(row, col) {
-    const key = `R${row}-U${col}`;
-    const current = extras[key] || [];
-    const n = current.length + 1;
-    const newId = buildExtraId(row, col, n);
-    const newUmbrella = { id: newId, row, col, isExtra: true };
-    setExtras((prev) => ({ ...prev, [key]: [...current, newUmbrella] }));
-    // Open it immediately so the worker can assign it right away
-    setSelectedUmbrella(newUmbrella);
+  function handleModalClose(changed) {
+    if (changed) loadData();
+    setSelected(null);
   }
 
-  function removeExtra(umbrellaId) {
-    const parsed = parseUmbrellaId(umbrellaId);
-    if (!parsed) return;
-    const key = `R${parsed.row}-U${parsed.col}`;
-    setExtras((prev) => ({
-      ...prev,
-      [key]: (prev[key] || []).filter((e) => e.id !== umbrellaId),
-    }));
-  }
+  const umbrellas = allUmbrellas();
+  const normalList = umbrellas.filter((n) => !isBalinese(n));
+  const balineseList = umbrellas.filter((n) => isBalinese(n));
 
-  const row1 = baseUmbrellas.filter((u) => u.row === 1);
-  const row2 = baseUmbrellas.filter((u) => u.row === 2);
+  // Stats
+  const activeOrders = Object.values(orders).flat();
+  const occupied = activeOrders.length;
+  const pending = activeOrders.filter((o) => o.status === "pending").length;
+  const paid = activeOrders.filter((o) => o.status === "paid" || o.status === "paid_table").length;
 
-  const occupied = Object.values(rentals).filter((r) => r.status === "occupied").length;
-  const reserved = Object.values(rentals).filter((r) => r.status === "reserved").length;
-  const totalBase = baseUmbrellas.length;
-  const totalExtras = Object.values(extras).reduce((s, arr) => s + arr.length, 0);
-  const free = totalBase + totalExtras - occupied - reserved;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-ocean-600 text-lg animate-pulse">Cargando...</div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-ocean-600 animate-pulse text-lg">Cargando...</div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-ocean-900 pb-20">
       {/* Header */}
-      <div className="bg-ocean-800 px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-lg">
+      <div className="bg-ocean-800 px-4 py-3 sticky top-0 z-10 shadow-lg flex justify-between items-center">
         <div>
           <h1 className="font-bold text-white text-lg">🏖️ Beach Manager</h1>
           <p className="text-ocean-600 text-xs">{today}</p>
         </div>
         <div className="flex gap-3 text-xs text-center">
-          <div><div className="font-bold text-green-400">{free}</div><div className="text-gray-400">Libres</div></div>
-          <div><div className="font-bold text-amber-400">{reserved}</div><div className="text-gray-400">Reserv.</div></div>
-          <div><div className="font-bold text-ocean-400">{occupied}</div><div className="text-gray-400">Ocupadas</div></div>
+          <div><div className="font-bold text-white">{occupied}</div><div className="text-gray-400">Activas</div></div>
+          <div><div className="font-bold text-red-400">{pending}</div><div className="text-gray-400">Pend.</div></div>
+          <div><div className="font-bold text-ocean-400">{paid}</div><div className="text-gray-400">Pagadas</div></div>
         </div>
       </div>
 
       {/* Legend */}
-      <div className="flex gap-3 px-4 py-2 text-xs">
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-600 inline-block" />Libre</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-700 inline-block" />Reservada</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-ocean-700 inline-block" />Ocupada</span>
-      </div>
-
-      {/* Beach grid */}
-      <div className="px-2 space-y-6 mt-2">
-        {[row1, row2].map((rowUmbrellas, rowIdx) => (
-          <div key={rowIdx}>
-            <div className="text-xs text-gray-500 px-2 mb-2 font-medium">FILA {rowIdx + 1}</div>
-            <div className="flex flex-wrap gap-1 justify-center">
-              {Array.from({ length: UMBRELLAS_PER_ROW }, (_, i) => {
-                const col = i + 1;
-                const row = rowIdx + 1;
-                const left = rowUmbrellas.find((u) => u.col === col && u.side === "L");
-                const right = rowUmbrellas.find((u) => u.col === col && u.side === "R");
-                const key = `R${row}-U${col}`;
-                const extraList = extras[key] || [];
-
-                return (
-                  <div key={col} className="flex flex-col items-center">
-                    <span className="text-[10px] text-gray-600 mb-0.5">{col}</span>
-                    <div className="flex items-center gap-0.5">
-                      <UmbrellaCell umbrella={left} rental={rentals[left.id]} onClick={() => setSelectedUmbrella(left)} />
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-base">☂️</span>
-                        {/* Extra tumbonas bajo la sombrilla */}
-                        {extraList.map((ex) => (
-                          <UmbrellaCell
-                            key={ex.id}
-                            umbrella={ex}
-                            rental={rentals[ex.id]}
-                            onClick={() => setSelectedUmbrella(ex)}
-                          />
-                        ))}
-                        {/* Botón añadir extra */}
-                        <button
-                          onClick={() => addExtra(row, col)}
-                          className="w-5 h-5 rounded-full bg-gray-700 hover:bg-sand-500 text-gray-400 hover:text-ocean-900 text-xs font-bold flex items-center justify-center transition-colors"
-                          title="Añadir tumbona extra"
-                        >+</button>
-                      </div>
-                      <UmbrellaCell umbrella={right} rental={rentals[right.id]} onClick={() => setSelectedUmbrella(right)} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 px-4 py-2 text-xs">
+        {Object.entries(STATUS_LABEL).map(([k, v]) => (
+          <span key={k} className="flex items-center gap-1">
+            <span className={`w-2.5 h-2.5 rounded border ${STATUS_COLOR[k]}`}/>
+            {v}
+          </span>
         ))}
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded border bg-gray-700 border-gray-600"/>Libre</span>
       </div>
 
-      {/* Modal */}
-      {selectedUmbrella && (
-        <UmbrellaModal
-          umbrella={selectedUmbrella}
-          rental={rentals[selectedUmbrella.id]}
+      <div className="px-3 space-y-5 mt-1">
+        {/* Sombrillas normales */}
+        <section>
+          <div className="text-xs text-gray-500 mb-2 font-medium px-1">☂️ SOMBRILLAS (500–530)</div>
+          <div className="flex flex-wrap gap-2">
+            {normalList.map((num) => (
+              <UmbrellaButton key={num} num={num} orders={orders[num] || []} onClick={() => handleClick(num)} />
+            ))}
+          </div>
+        </section>
+
+        {/* Balinesas */}
+        <section>
+          <div className="text-xs text-gray-500 mb-2 font-medium px-1">🛏️ BALINESAS (531–539)</div>
+          <div className="flex flex-wrap gap-2">
+            {balineseList.map((num) => (
+              <UmbrellaButton key={num} num={num} orders={orders[num] || []} onClick={() => handleClick(num)} balinese />
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {selected && (
+        <OrderModal
+          num={selected.num}
+          order={selected.order}
           settings={settings}
           products={products}
-          onClose={(updated, freed) => {
-            // If the extra was freed with no rental record, remove from UI
-            if (selectedUmbrella.isExtra && freed) removeExtra(selectedUmbrella.id);
-            handleModalClose(updated);
-          }}
+          onClose={handleModalClose}
         />
       )}
 
       <BottomNav />
     </div>
+  );
+}
+
+function UmbrellaButton({ num, orders, onClick, balinese }) {
+  const active = orders.filter((o) => !o.closed);
+  const status = active.length > 0 ? active[active.length - 1].status : null;
+  const colorClass = status ? STATUS_COLOR[status] : "bg-gray-800 border-gray-700";
+  const icon = balinese ? "🛏️" : "☂️";
+
+  return (
+    <button
+      onClick={onClick}
+      className={`relative border rounded-xl px-2 py-2 text-center min-w-[52px] transition-all active:scale-95 ${colorClass}`}
+    >
+      <div className="text-lg leading-none">{icon}</div>
+      <div className="text-white text-xs font-bold mt-0.5">{num}</div>
+      {active.length > 1 && (
+        <span className="absolute -top-1 -right-1 bg-sand-400 text-ocean-900 text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+          {active.length}
+        </span>
+      )}
+    </button>
   );
 }

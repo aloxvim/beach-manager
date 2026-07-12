@@ -1,96 +1,91 @@
 # Beach Manager
 
-Aplicación de gestión de tumbonas para playa. PWA mobile-first con backend Node.js, base de datos SQLite y exportación PDF.
+Aplicación web de gestión de sombrillas y tumbonas de playa. Desarrollada por Claude (Anthropic) como herramienta de uso interno para un trabajador de playa.
+
+PWA mobile-first con backend Node.js, base de datos SQLite y exportación PDF.
+
+---
 
 ## Requisitos
 
-- Synology DS120j con **Docker** y **Docker Compose** instalados (desde el Centro de Paquetes del DSM)
-- Acceso SSH al NAS
+- Docker y Docker Compose instalados
+- Puerto 3000 disponible (configurable)
 
-## Instalación en el DS120j
+---
 
-### 1. Copiar los archivos al NAS
+## Instalación
 
-Desde tu ordenador, copia la carpeta del proyecto al NAS (por ejemplo vía File Station o SCP):
-
-```bash
-scp -r beach-manager/ admin@<IP-DEL-NAS>:/volume1/docker/beach-manager
-```
-
-### 2. Configurar las variables de entorno
-
-Conéctate al NAS por SSH y entra en la carpeta:
+### 1. Configurar variables de entorno
 
 ```bash
-ssh admin@<IP-DEL-NAS>
-cd /volume1/docker/beach-manager
 cp .env.example .env
-vi .env
 ```
 
 Edita el `.env` con tus valores:
 
 ```env
-JWT_SECRET=una_clave_larga_y_aleatoria_aqui
-ADMIN_PASSWORD=tu_contraseña_segura
+JWT_SECRET=una_clave_larga_y_aleatoria
+ADMIN_PASSWORD=tu_contraseña
 PORT=3000
 ```
 
-### 3. Arrancar la aplicación
+### 2. Levantar la aplicación
 
 ```bash
-cd /volume1/docker/beach-manager
 docker-compose up -d --build
 ```
 
 La primera vez tardará unos minutos en descargar las imágenes base y compilar el frontend.
 
-### 4. Acceder a la app
-
-Abre el navegador en tu móvil y ve a:
+### 3. Acceder
 
 ```
-http://<IP-DEL-NAS>:3000
+http://localhost:3000
 ```
 
-Introduce la contraseña que configuraste en `ADMIN_PASSWORD`.
+O desde otro dispositivo en la misma red:
+
+```
+http://<IP-del-servidor>:3000
+```
 
 ---
 
 ## Instalar como app en el móvil (PWA)
 
-**Android (Chrome):**
-1. Abre la URL en Chrome
-2. Menú (⋮) → "Añadir a pantalla de inicio"
+**Android (Chrome):** Menú → "Añadir a pantalla de inicio"
 
-**iOS (Safari):**
-1. Abre la URL en Safari
-2. Botón compartir → "Añadir a pantalla de inicio"
+**iOS (Safari):** Botón compartir → "Añadir a pantalla de inicio"
 
 ---
 
-## Uso diario
+## Uso
 
 | Pantalla | Función |
 |----------|---------|
-| **Playa** | Vista general de todas las tumbonas. Toca una para gestionarla |
-| **Resumen** | Ingresos del día actual + exportar PDF |
-| **Historial** | Ver y exportar días anteriores |
-| **Ajustes** | Precio diario, carta de consumiciones, nombre de la playa |
+| **Playa** | Vista general de todas las sombrillas. Toca una para abrir su comanda |
+| **Resumen** | Ingresos del día actual y exportar PDF |
+| **Historial** | Consultar y exportar días anteriores |
+| **Ajustes** | Precio por defecto, carta de consumiciones, nombre de la playa |
 
-### Estados de una tumbona
+### Estados de una comanda
 
-- 🛏️ **Libre** → Se puede ocupar directamente o reservar
-- 📋 **Reservada** → Esperando al cliente. Al llegar, hacer check-in
-- 👤 **Ocupada** → Añadir consumiciones, aplicar reembolso parcial, liberar
+- **Reservado** — cliente con reserva, aún no ha llegado
+- **Pendiente** — ocupada, pendiente de cobro
+- **Pagado** — cobrado directamente
+- **Pagado en mesa** — cobrado junto con consumición en mesa
+- **Invitado** — sin cargo, no computa en ingresos
 
-### Reembolso parcial
+### Sombrillas
 
-Disponible siempre en tumbonas ocupadas. Se registra el importe devuelto y el motivo (opcional). El resumen descuenta automáticamente los reembolsos del total.
+- 500–530: sombrillas normales ☂️
+- 531–539: balinesas 🛏️ (precio libre por comanda)
+
+Una misma sombrilla puede tener varios turnos en el mismo día. Al cerrar un turno los ingresos se conservan y la sombrilla queda libre para el siguiente cliente.
 
 ---
 
-## Operaciones de mantenimiento
+## Mantenimiento
 
 ### Ver logs
 
@@ -104,78 +99,38 @@ docker-compose logs -f backend
 docker-compose restart
 ```
 
-### Backup de la base de datos
-
-La base de datos está en un volumen Docker. Para hacer backup:
-
-```bash
-docker run --rm \
-  -v beach-manager_beach-data:/data \
-  -v /volume1/backup:/backup \
-  alpine tar czf /backup/beach-db-$(date +%Y%m%d).tar.gz /data
-```
-
-### Actualizar la aplicación
-
-```bash
-cd /volume1/docker/beach-manager
-git pull  # o copia los nuevos archivos
-docker-compose up -d --build
-```
-
-### Parar la aplicación
+### Parar
 
 ```bash
 docker-compose down
 ```
 
----
+### Backup de la base de datos
 
-## Estructura del proyecto
+Los datos se guardan en `./data/beach.db`. Basta con copiar ese archivo.
 
+### Restablecer contraseña
+
+Edita el `.env` y reinicia el backend:
+
+```bash
+docker-compose restart backend
 ```
-beach-manager/
-├── docker-compose.yml
-├── .env.example
-├── backend/
-│   ├── Dockerfile
-│   ├── package.json
-│   └── src/
-│       ├── index.js          # Entry point Express
-│       ├── db/index.js       # SQLite + schema
-│       ├── middleware/auth.js # JWT
-│       └── routes/
-│           ├── auth.js
-│           ├── settings.js
-│           ├── products.js
-│           ├── rentals.js    # Lógica principal
-│           └── pdf.js
-└── frontend/
-    ├── Dockerfile
-    ├── nginx.conf
-    ├── vite.config.js
-    └── src/
-        ├── api.js            # Cliente HTTP
-        ├── App.jsx           # Router
-        ├── context/AuthContext.jsx
-        ├── pages/
-        │   ├── LoginPage.jsx
-        │   ├── BeachPage.jsx    # Mapa de tumbonas
-        │   ├── SummaryPage.jsx  # Resumen del día
-        │   ├── HistoryPage.jsx  # Histórico
-        │   └── SettingsPage.jsx
-        └── components/
-            ├── UmbrellaCell.jsx   # Tumbona individual
-            ├── UmbrellaModal.jsx  # Gestión completa
-            ├── BottomNav.jsx
-            └── ProtectedRoute.jsx
+
+### Empezar desde cero
+
+```bash
+docker-compose down
+rm -rf ./data
+docker-compose up -d
 ```
 
 ---
 
-## Notas técnicas
+## Stack
 
-- **Base de datos**: SQLite con WAL mode (mayor rendimiento en lecturas concurrentes)
-- **Auth**: JWT con expiración de 12h — al llegar a la playa, abre la app y listo
-- **PDF**: Generado en el servidor con pdfkit, descarga directa
-- **Sin internet**: Una vez cargada, la PWA funciona offline para consulta (las escrituras requieren conexión al NAS)
+- **Frontend:** React + Tailwind CSS + Vite (servido con Nginx)
+- **Backend:** Node.js + Express
+- **Base de datos:** SQLite (via better-sqlite3)
+- **PDF:** pdfkit
+- **Auth:** JWT

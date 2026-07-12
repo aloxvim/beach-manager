@@ -11,7 +11,7 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
       - DB_PATH=/data/beach.db
     volumes:
-      - beach-data:/data
+      - ./data:/data
     networks:
       - beach-net
 
@@ -25,10 +25,6 @@ services:
       - backend
     networks:
       - beach-net
-
-volumes:
-  beach-data:
-    driver: local
 
 networks:
   beach-net:

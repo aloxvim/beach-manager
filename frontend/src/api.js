@@ -1,8 +1,6 @@
 const BASE = "/api";
 
-function getToken() {
-  return localStorage.getItem("bm_token");
-}
+function getToken() { return localStorage.getItem("bm_token"); }
 
 async function request(path, options = {}) {
   const token = getToken();
@@ -21,15 +19,11 @@ async function request(path, options = {}) {
     window.location.href = "/login";
     return;
   }
-
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Error desconocido" }));
     throw new Error(err.error || "Error en la petición");
   }
-
-  if (res.headers.get("content-type")?.includes("application/pdf")) {
-    return res.blob();
-  }
+  if (res.headers.get("content-type")?.includes("application/pdf")) return res.blob();
   return res.json();
 }
 
@@ -45,17 +39,15 @@ export const api = {
   updateProduct: (id, data) => request(`/products/${id}`, { method: "PUT", body: data }),
   deleteProduct: (id) => request(`/products/${id}`, { method: "DELETE" }),
 
-  getRentals: (date) => request(`/rentals${date ? `?date=${date}` : ""}`),
-  createRental: (data) => request("/rentals", { method: "POST", body: data }),
-  updateRental: (id, data) => request(`/rentals/${id}`, { method: "PATCH", body: data }),
-  checkoutRental: (id) => request(`/rentals/${id}/checkout`, { method: "POST" }),
-  reserveUmbrella: (id, data) => request(`/rentals/${id}/reserve`, { method: "POST", body: data }),
-  checkinRental: (id) => request(`/rentals/${id}/checkin`, { method: "POST" }),
-  addConsumption: (id, data) => request(`/rentals/${id}/consumptions`, { method: "POST", body: data }),
-  deleteConsumption: (rentalId, cid) => request(`/rentals/${rentalId}/consumptions/${cid}`, { method: "DELETE" }),
+  getOrders: (date) => request(`/orders${date ? `?date=${date}` : ""}`),
+  createOrder: (data) => request("/orders", { method: "POST", body: data }),
+  updateOrder: (id, data) => request(`/orders/${id}`, { method: "PATCH", body: data }),
+  closeOrder: (id) => request(`/orders/${id}/close`, { method: "POST" }),
+  deleteOrder: (id) => request(`/orders/${id}`, { method: "DELETE" }),
+  addItem: (id, data) => request(`/orders/${id}/items`, { method: "POST", body: data }),
+  deleteItem: (orderId, iid) => request(`/orders/${orderId}/items/${iid}`, { method: "DELETE" }),
 
-  getSummary: (date) => request(`/rentals/summary${date ? `?date=${date}` : ""}`),
-  getHistory: () => request("/rentals/history"),
-
+  getSummary: (date) => request(`/orders/summary${date ? `?date=${date}` : ""}`),
+  getHistory: () => request("/orders/history"),
   getPdf: (date) => request(`/pdf/summary/${date}`, { headers: { Accept: "application/pdf" } }),
 };

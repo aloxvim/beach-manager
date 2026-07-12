@@ -14,8 +14,7 @@ export default function HistoryPage() {
   }, []);
 
   async function loadDay(date) {
-    setSelected(date);
-    setSummary(null);
+    setSelected(date); setSummary(null);
     const s = await api.getSummary(date);
     setSummary(s);
   }
@@ -25,10 +24,8 @@ export default function HistoryPage() {
     try {
       const blob = await api.getPdf(date);
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `resumen-${date}.pdf`;
-      a.click();
+      const a = document.createElement("a"); a.href = url;
+      a.download = `resumen-${date}.pdf`; a.click();
       URL.revokeObjectURL(url);
     } catch (e) { alert("Error: " + e.message); }
     finally { setExporting(false); }
@@ -49,40 +46,33 @@ export default function HistoryPage() {
             <p>Sin historial todavía</p>
           </div>
         )}
-
         <div className="space-y-2">
           {history.map((day) => (
             <div key={day.date}>
-              <button
-                onClick={() => loadDay(day.date)}
+              <button onClick={() => loadDay(day.date)}
                 className={`w-full text-left rounded-xl p-4 transition-colors ${
                   selected === day.date ? "bg-ocean-700 border border-ocean-500" : "bg-ocean-800 hover:bg-ocean-700"
-                }`}
-              >
+                }`}>
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="font-medium text-white">{day.date}</div>
-                    <div className="text-gray-400 text-xs mt-0.5">{day.rentals} tumbona{day.rentals !== 1 ? "s" : ""}</div>
+                    <div className="text-gray-400 text-xs mt-0.5">{day.orders} comanda{day.orders !== 1 ? "s" : ""}</div>
                   </div>
-                  <div className="text-sand-400 font-bold text-lg">
-                    {(day.net_rentals || 0).toFixed(2)} €
-                  </div>
+                  <div className="text-sand-400 font-bold text-lg">{(day.net_beds || 0).toFixed(2)} €</div>
                 </div>
               </button>
-
-              {/* Expanded day summary */}
               {selected === day.date && (
                 <div className="bg-ocean-900 border border-ocean-700 rounded-xl mt-1 p-4 space-y-3">
-                  {!summary && <p className="text-ocean-600 animate-pulse text-sm">Cargando detalle...</p>}
+                  {!summary && <p className="text-ocean-600 animate-pulse text-sm">Cargando...</p>}
                   {summary && (
                     <>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div className="bg-ocean-800 rounded-lg p-2.5">
-                          <div className="text-green-400 font-bold">{summary.netRentals.toFixed(2)} €</div>
-                          <div className="text-gray-400 text-xs">Alquiler neto</div>
+                          <div className="text-green-400 font-bold">{summary.netBeds.toFixed(2)} €</div>
+                          <div className="text-gray-400 text-xs">Tumbonas neto</div>
                         </div>
                         <div className="bg-ocean-800 rounded-lg p-2.5">
-                          <div className="text-amber-400 font-bold">{summary.totalConsumptions.toFixed(2)} €</div>
+                          <div className="text-amber-400 font-bold">{summary.totalItems.toFixed(2)} €</div>
                           <div className="text-gray-400 text-xs">Consumiciones</div>
                         </div>
                       </div>
@@ -91,11 +81,8 @@ export default function HistoryPage() {
                       )}
                       <div className="flex justify-between items-center border-t border-ocean-700 pt-2">
                         <span className="font-bold text-white">TOTAL: {summary.totalIncome.toFixed(2)} €</span>
-                        <button
-                          onClick={() => handleExportPdf(day.date)}
-                          disabled={exporting}
-                          className="bg-sand-400 hover:bg-sand-300 text-ocean-900 font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-40"
-                        >
+                        <button onClick={() => handleExportPdf(day.date)} disabled={exporting}
+                          className="bg-sand-400 hover:bg-sand-300 text-ocean-900 font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-40">
                           {exporting ? "..." : "📄 PDF"}
                         </button>
                       </div>
@@ -107,7 +94,6 @@ export default function HistoryPage() {
           ))}
         </div>
       </div>
-
       <BottomNav />
     </div>
   );
