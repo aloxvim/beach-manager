@@ -149,9 +149,15 @@ export default function BeachPage() {
 
 function UmbrellaButton({ num, orders, onClick, balinese }) {
   const active = orders.filter((o) => !o.closed);
-  const status = active.length > 0 ? active[active.length - 1].status : null;
+  const last = active.length > 0 ? active[active.length - 1] : null;
+  const status = last?.status || null;
   const colorClass = status ? STATUS_COLOR[status] : "bg-gray-800 border-gray-700";
   const icon = balinese ? "🛏️" : "☂️";
+
+  // Nombre corto: primera palabra del nombre del cliente
+  const shortName = last?.client_name
+    ? last.client_name.trim().split(" ")[0].slice(0, 8)
+    : null;
 
   return (
     <button
@@ -160,6 +166,11 @@ function UmbrellaButton({ num, orders, onClick, balinese }) {
     >
       <div className="text-lg leading-none">{icon}</div>
       <div className="text-white text-xs font-bold mt-0.5">{num}</div>
+      {shortName && (
+        <div className="text-[10px] text-white/80 leading-tight mt-0.5 max-w-[52px] truncate">
+          {shortName}
+        </div>
+      )}
       {active.length > 1 && (
         <span className="absolute -top-1 -right-1 bg-sand-400 text-ocean-900 text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
           {active.length}
