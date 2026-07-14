@@ -32,6 +32,7 @@ const STATUS_LABEL = {
 export default function BeachPage() {
   const [orders, setOrders] = useState({});   // umbrella_num → [order, ...]
   const [selected, setSelected] = useState(null); // { num, order | null }
+  const [multiSelect, setMultiSelect] = useState(null); // num con varias comandas
   const [settings, setSettings] = useState({ standard_price: "6" });
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,9 +59,11 @@ export default function BeachPage() {
 
   function handleClick(num) {
     const active = orders[num] || [];
-    // If one active order, open it. If multiple (unusual), open last. If none, open new.
-    const order = active.length > 0 ? active[active.length - 1] : null;
-    setSelected({ num, order });
+    if (active.length === 0) {
+      setSelected({ num, order: null });
+    } else {
+      setMultiSelect(num);
+    }
   }
 
   function handleModalClose(changed) {
@@ -132,6 +135,35 @@ export default function BeachPage() {
         </section>
       </div>
 
+      {multiSelect !== null && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center"
+          onClick={() => setMultiSelect(null)}>
+          <div className="bg-ocean-800 w-full max-w-lg rounded-t-2xl p-5 pb-8"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-bold text-white text-lg">☂️ Sombrilla {multiSelect}</h2>
+              <button onClick={() => setMultiSelect(null)} className="text-gray-400 text-2xl leading-none">×</button>
+            </div>
+            <div className="space-y-2">
+              {(orders[multiSelect] || []).map((o, i) => (
+                <button key={o.id} onClick={() => { setMultiSelect(null); setSelected({ num: multiSelect, order: o }); }}
+                  className="w-full bg-ocean-900 border border-ocean-700 rounded-xl px-4 py-3 text-left hover:border-sand-400 transition-colors">
+                  <span className="text-white font-medium">Comanda {i + 1}</span>
+                  {o.client_name && <span className="text-gray-400 ml-2">· {o.client_name}</span>}
+                  <span className="text-xs text-gray-500 ml-2">
+                    · {(o.standard_beds || 0) + (o.balinese_beds || 0)} tumbonas
+                  </span>
+                </button>
+              ))}
+              <button onClick={() => { setMultiSelect(null); setSelected({ num: multiSelect, order: null }); }}
+                className="w-full bg-sand-500 hover:bg-sand-400 text-ocean-900 font-bold py-3 rounded-xl mt-1">
+                + Nueva comanda
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selected && (
         <OrderModal
           num={selected.num}
@@ -154,9 +186,10 @@ function UmbrellaButton({ num, orders, onClick, balinese }) {
   const colorClass = status ? STATUS_COLOR[status] : "bg-gray-800 border-gray-700";
   const icon = balinese ? "🛏️" : "☂️";
 
-  const shortName = last?.client_name
-    ? last.client_name.trim().split(" ")[0].slice(0, 8)
-    : null;
+  const shortName = active
+    .filter((o) => o.client_name)
+    .map((o) => o.client_name.trim().split(" ")[0].slice(0, 12))
+    .join(" / ") || null;
 
   const totalBeds = (parseInt(last?.standard_beds) || 0) + (parseInt(last?.balinese_beds) || 0);
 
