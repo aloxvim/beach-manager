@@ -168,3 +168,41 @@ router.get("/history", (req, res) => {
 });
 
 module.exports = router;
+
+// POST /orders/close-day — finalizar jornada
+router.post("/close-day", (req, res) => {
+  const db = getDb();
+  const date = req.body.date || today();
+
+  // Cerrar automáticamente: paid, paid_table, guest
+  db.prepare(`
+    UPDATE orders SET closed = 1
+    WHERE date = ? AND closed = 0
+    AND status IN ('paid', 'paid_table', 'guest')
+  `).run(date);
+
+  // Devolver las que quedan sin resolver (reserved, pending)
+  const unresolved = db.prepare(`
+    SELECT * FROM orders
+    WHERE date = ? AND closed = 0
+    AND status IN ('reserved', 'pending')
+    ORDER BY umbrella_num
+  `).all(date);
+
+  res.json({ unresolved: unresolved.map(withItems) });
+});
+
+// POST /orders/close-day/resolve — resolver una comanda pendiente
+router.post("/close-day/resolve", (req, res) => {
+  const db = getDb();
+  const { order_id, action } = req.body;
+  // action: 'paid' | 'cancel'
+
+  if (action === 'cancel') {
+    db.prepare("DELETE FROM orders WHERE id = ?").run(order_id);
+  } else {
+    db.prepare("UPDATE orders SET status = 'paid', closed = 1 WHERE id = ?").run(order_id);
+  }
+
+  res.json({ ok: true });
+});

@@ -5,7 +5,10 @@ import BottomNav from "../components/BottomNav";
 
 export default function SettingsPage() {
   const { logout } = useAuth();
-  const [settings, setSettings] = useState({ daily_price: "5", beach_name: "Playa" });
+  const [settings, setSettings] = useState({ daily_price: "6", beach_name: "Playa" });
+  const [closeDay, setCloseDay] = useState(null); // null | { unresolved: [] }
+  const [resolving, setResolving] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -49,6 +52,36 @@ export default function SettingsPage() {
       <div className="text-ocean-600 animate-pulse">Cargando...</div>
     </div>
   );
+
+  async function handleCloseDayStart() {
+    if (!confirm("¿Cerrar la jornada de hoy? Las comandas pagadas se cerrarán automáticamente.")) return;
+    setResolving(true);
+    try {
+      const result = await api.closeDayAuto(today);
+      if (result.unresolved.length === 0) {
+        alert("Jornada cerrada. Todas las comandas estaban resueltas.");
+        setCloseDay(null);
+      } else {
+        setCloseDay(result);
+      }
+    } catch (e) { alert("Error: " + e.message); }
+    finally { setResolving(false); }
+  }
+
+  async function handleResolve(order_id, action) {
+    setResolving(true);
+    try {
+      await api.closeDayResolve(order_id, action);
+      const updated = closeDay.unresolved.filter((o) => o.id !== order_id);
+      if (updated.length === 0) {
+        alert("Jornada cerrada correctamente.");
+        setCloseDay(null);
+      } else {
+        setCloseDay({ unresolved: updated });
+      }
+    } catch (e) { alert("Error: " + e.message); }
+    finally { setResolving(false); }
+  }
 
   return (
     <div className="min-h-screen bg-ocean-900 pb-24">
@@ -144,6 +177,62 @@ export default function SettingsPage() {
           </div>
         </section>
       </div>
+
+      {/* Finalizar jornada */}
+        <section>
+          <h2 className="text-xs font-medium text-gray-400 mb-2">JORNADA</h2>
+          <button
+            onClick={handleCloseDayStart}
+            disabled={resolving}
+            className="w-full bg-red-900 hover:bg-red-800 text-white font-bold py-3.5 rounded-xl disabled:opacity-40"
+          >
+            🌅 Finalizar jornada
+          </button>
+        </section>
+
+        {/* Modal resolución de pendientes */}
+        {closeDay && (
+          <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center">
+            <div className="bg-ocean-800 w-full max-w-lg rounded-t-2xl p-5 pb-8 max-h-[85vh] overflow-y-auto">
+              <h2 className="font-bold text-white text-lg mb-1">Comandas sin resolver</h2>
+              <p className="text-gray-400 text-sm mb-4">Decide qué hacer con cada una antes de cerrar la jornada.</p>
+              <div className="space-y-3">
+                {closeDay.unresolved.map((o) => (
+                  <div key={o.id} className="bg-ocean-900 rounded-xl p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <span className="font-bold text-white">Sombrilla {o.umbrella_num}</span>
+                        {o.client_name && <span className="text-gray-400 ml-2">· {o.client_name}</span>}
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          {o.status === "reserved" ? "Reservado" : "Pendiente"} · {(o.standard_beds || 0) + (o.balinese_beds || 0)} tumbonas
+                        </div>
+                      </div>
+                      <span className="text-sand-400 font-bold text-sm">
+                        {((o.standard_beds || 0) * (o.standard_price || 6) + (o.balinese_price || 0)).toFixed(2)} €
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleResolve(o.id, 'paid')}
+                        disabled={resolving}
+                        className="flex-1 bg-ocean-700 hover:bg-ocean-600 text-white font-medium py-2 rounded-lg text-sm disabled:opacity-40"
+                      >
+                        ✅ Cobrado
+                      </button>
+                      <button
+                        onClick={() => handleResolve(o.id, 'cancel')}
+                        disabled={resolving}
+                        className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 py-2 rounded-lg text-sm disabled:opacity-40"
+                      >
+                        🗑️ Sin cargo
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
       <BottomNav />
     </div>

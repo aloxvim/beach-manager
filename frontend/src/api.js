@@ -50,4 +50,7 @@ export const api = {
   getSummary: (date) => request(`/orders/summary${date ? `?date=${date}` : ""}`),
   getHistory: () => request("/orders/history"),
   getPdf: (date) => request(`/pdf/summary/${date}`, { headers: { Accept: "application/pdf" } }),
+
+  closeDayAuto: (date) => request("/orders/close-day", { method: "POST", body: { date } }),
+  closeDayResolve: (order_id, action) => request("/orders/close-day/resolve", { method: "POST", body: { order_id, action } }),
 };
