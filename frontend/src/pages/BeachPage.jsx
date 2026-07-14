@@ -17,11 +17,11 @@ function allUmbrellas() {
 }
 
 const STATUS_COLOR = {
-  reserved:   "bg-amber-800 border-amber-600",
-  pending:    "bg-red-900 border-red-700",
-  paid:       "bg-ocean-700 border-ocean-500",
+  reserved: "bg-amber-800 border-amber-600",
+  pending: "bg-red-900 border-red-700",
+  paid: "bg-ocean-700 border-ocean-500",
   paid_table: "bg-green-900 border-green-700",
-  guest:      "bg-purple-900 border-purple-700",
+  guest: "bg-purple-900 border-purple-700",
 };
 
 const STATUS_LABEL = {
@@ -103,11 +103,11 @@ export default function BeachPage() {
       <div className="flex flex-wrap gap-x-3 gap-y-1 px-4 py-2 text-xs">
         {Object.entries(STATUS_LABEL).map(([k, v]) => (
           <span key={k} className="flex items-center gap-1">
-            <span className={`w-2.5 h-2.5 rounded border ${STATUS_COLOR[k]}`}/>
+            <span className={`w-2.5 h-2.5 rounded border ${STATUS_COLOR[k]}`} />
             {v}
           </span>
         ))}
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded border bg-gray-700 border-gray-600"/>Libre</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded border bg-gray-700 border-gray-600" />Libre</span>
       </div>
 
       <div className="px-3 space-y-5 mt-1">
@@ -154,10 +154,11 @@ function UmbrellaButton({ num, orders, onClick, balinese }) {
   const colorClass = status ? STATUS_COLOR[status] : "bg-gray-800 border-gray-700";
   const icon = balinese ? "🛏️" : "☂️";
 
-  // Nombre corto: primera palabra del nombre del cliente
   const shortName = last?.client_name
     ? last.client_name.trim().split(" ")[0].slice(0, 8)
     : null;
+
+  const totalBeds = (parseInt(last?.standard_beds) || 0) + (parseInt(last?.balinese_beds) || 0);
 
   return (
     <button
@@ -166,6 +167,9 @@ function UmbrellaButton({ num, orders, onClick, balinese }) {
     >
       <div className="text-lg leading-none">{icon}</div>
       <div className="text-white text-xs font-bold mt-0.5">{num}</div>
+      {totalBeds > 0 && (
+        <div className="text-white text-[10px]">{totalBeds} 🛏️</div>
+      )}
       {shortName && (
         <div className="text-[10px] text-white/80 leading-tight mt-0.5 max-w-[52px] truncate">
           {shortName}
