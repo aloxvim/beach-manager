@@ -1,2 +1,4 @@
 .env
 data/
+CLAUDE.md
+node_modules/
